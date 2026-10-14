@@ -13,22 +13,21 @@ data class MapBoundingBox(
 @Suppress("unused")
 object MapsforgeHeaderParser {
 
-    private const val MAGIC_HEADER = "mapsforge binary header"
-
     @Suppress("unused")
     fun parseBoundingBox(mapFile: File): MapBoundingBox? {
-        if ((!mapFile.exists()) || (!mapFile.isFile) || (mapFile.length() < 40)) return null
+        if ((!mapFile.exists()) || (!mapFile.isFile) || (mapFile.length() < 60)) return null
 
         return try {
             RandomAccessFile(mapFile, "r").use { raf ->
-                val headerBytes = ByteArray(MAGIC_HEADER.length)
+                // Mapsforge binary signature is exactly 20 bytes (e.g. "mapsforge binary OSM")
+                val headerBytes = ByteArray(20)
                 raf.readFully(headerBytes)
                 val headerStr = String(headerBytes, Charsets.UTF_8)
-                if (headerStr != MAGIC_HEADER) {
+                if (!headerStr.startsWith("mapsforge")) {
                     return null
                 }
 
-                // Skip remainder of header metadata to reach bounding box coordinates
+                // Skip Header Size (4), File Version (4), File Size (8), Creation Date (8) = 24 bytes
                 raf.skipBytes(24)
 
                 val minLatMicro = raf.readInt()

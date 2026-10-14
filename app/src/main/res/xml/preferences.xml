@@ -2,31 +2,57 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <ListPreference
-        android:defaultValue="1"
-        android:entries="@array/page_gap_entries"
-        android:entryValues="@array/page_gap_values"
-        android:key="page_gap_index"
-        android:summary="How many screen flips away your climbing page sits"
-        android:title="Page Gap Index" />
+    <PreferenceCategory
+        android:key="config_settings_category"
+        android:title="Config Settings">
 
-    <SeekBarPreference
-        android:defaultValue="35"
-        android:key="min_grade_trigger"
-        android:max="80"
-        android:min="10"
-        android:summary="Minimum grade percentage required to flip layout (1.0% to 8.0%)"
-        android:title="Minimum Grade Trigger (%)"
-        app:seekBarIncrement="5"
-        app:showSeekBarValue="true" />
+        <ListPreference
+            android:defaultValue="ALL"
+            android:entries="@array/profile_filter_entries"
+            android:entryValues="@array/profile_filter_values"
+            android:key="active_profile_filter"
+            android:summary="%s"
+            android:title="Active Ride Profiles"
+            app:useSimpleSummaryProvider="true" />
 
-    <SeekBarPreference
-        android:defaultValue="20"
-        android:key="cooldown_seconds"
-        android:max="60"
-        android:min="5"
-        android:summary="Seconds to stay locked on climbing stats during plateaus"
-        android:title="Flattening Return Cooldown (s)"
-        app:showSeekBarValue="true" />
+        <ListPreference
+            android:defaultValue="TOP_RIGHT"
+            android:entries="@array/page_switch_direction_entries"
+            android:entryValues="@array/page_switch_direction_values"
+            android:key="page_switch_direction"
+            android:summary="%s"
+            android:title="Page Switch Hardware Action"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            android:defaultValue="1"
+            android:entries="@array/page_gap_entries"
+            android:entryValues="@array/page_gap_values"
+            android:key="page_gap_index"
+            android:summary="%s"
+            android:title="Page Gap Index"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            android:defaultValue="20"
+            android:entries="@array/cooldown_entries"
+            android:entryValues="@array/cooldown_values"
+            android:key="cooldown_seconds"
+            android:summary="%s"
+            android:title="Flattening Return Cooldown"
+            app:useSimpleSummaryProvider="true" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:key="downloaded_maps_category"
+        android:title="Downloaded Maps">
+
+        <Preference
+            android:key="sync_now_button"
+            android:summary="Tap to scan active Karoo maps and download missing tiles over Wi-Fi"
+            android:title="⚡ Sync Elevation Tiles Now" />
+
+    </PreferenceCategory>
 
 </PreferenceScreen>

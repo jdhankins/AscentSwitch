@@ -1,6 +1,5 @@
 package com.hank.ascentswitch
 
-import android.util.Log
 import androidx.preference.PreferenceManager
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -57,24 +56,26 @@ class AscentSwitchService : KarooExtension("ascentswitch", "1.0.0") {
 
     private var currentState: ClimbState = ClimbState.REGULAR
     private var cooldownJob: Job? = null
+    private var evaluationCounter: Long = 0
 
     override fun onCreate() {
         super.onCreate()
 
+        AppLogger.init(applicationContext)
+        AppLogger.d(TAG, "AscentSwitch telemetry service initialized.")
+
         karooSystem = KarooSystemService(applicationContext)
         karooSystem.connect { connected ->
             if (connected) {
-                Log.d(TAG, "Successfully connected to KarooSystemService.")
+                AppLogger.d(TAG, "Successfully connected to KarooSystemService.")
                 subscribeToTelemetry()
             } else {
-                Log.w(TAG, "Disconnected or failed to connect to KarooSystemService.")
+                AppLogger.w(TAG, "Disconnected or failed to connect to KarooSystemService.")
             }
         }
 
         scheduleMapAuditWorker()
         startBackgroundCalculationLoop()
-
-        Log.d(TAG, "AscentSwitch telemetry service initialized.")
     }
 
     private fun scheduleMapAuditWorker() {
@@ -85,9 +86,9 @@ class AscentSwitchService : KarooExtension("ascentswitch", "1.0.0") {
                 ExistingPeriodicWorkPolicy.KEEP,
                 mapAuditRequest,
             )
-            Log.d(TAG, "Scheduled 24-hour MapAuditWorker routine.")
+            AppLogger.d(TAG, "Scheduled 24-hour MapAuditWorker routine.")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to schedule MapAuditWorker: ${e.message}", e)
+            AppLogger.e(TAG, "Failed to schedule MapAuditWorker: ${e.message}", e)
         }
     }
 
@@ -115,7 +116,7 @@ class AscentSwitchService : KarooExtension("ascentswitch", "1.0.0") {
                 try {
                     evaluateUpcomingTerrain()
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error evaluating terrain: ${e.message}", e)
+                    AppLogger.e(TAG, "Error evaluating terrain: ${e.message}", e)
                 }
                 delay(2.seconds)
             }
@@ -123,6 +124,7 @@ class AscentSwitchService : KarooExtension("ascentswitch", "1.0.0") {
     }
 
     private fun evaluateUpcomingTerrain() {
+        evaluationCounter++
         if ((currentLat == 0.0) && (currentLon == 0.0)) return
 
         val cacheDir = applicationContext.filesDir
@@ -134,70 +136,108 @@ class AscentSwitchService : KarooExtension("ascentswitch", "1.0.0") {
         }
 
         val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
+
+        val profileFilter = prefs.getString("active_profile_filter", "ALL") ?: "ALL"
+        if ((profileFilter == "OUTDOOR_ONLY") && (currentSpeed < 1.0) && (currentLat == 0.0)) {
+            return
+        }
+
         val pageGapString = prefs.getString("page_gap_index", "1") ?: "1"
         val pageGap = pageGapString.toIntOrNull() ?: 1
 
-        val minGradeInt = prefs.getInt("min_grade_trigger", 35)
-        val triggerThreshold = minGradeInt / 10.0
+        val cooldownString = prefs.getString("cooldown_seconds", "20") ?: "20"
+        val cooldownSeconds = cooldownString.toIntOrNull() ?: 20
 
-        val cooldownSeconds = prefs.getInt("cooldown_seconds", 20)
+        val directionSetting = prefs.getString("page_switch_direction", "TOP_RIGHT") ?: "TOP_RIGHT"
+        val ascentButton = when (directionSetting) {
+            "TOP_RIGHT" -> HardwareButton.TOP_RIGHT
+            "TOP_LEFT" -> HardwareButton.TOP_LEFT
+            "BOTTOM_LEFT" -> HardwareButton.BOTTOM_LEFT
+            "BOTTOM_RIGHT" -> HardwareButton.BOTTOM_RIGHT
+            else -> HardwareButton.TOP_RIGHT
+        }
 
-        val probeDistance = if (currentSpeed > 8.0) 250.0 else 150.0
-        val (projectedLat, projectedLon) = projectCoordinate(
-            currentLat,
-            currentLon,
-            currentHeading,
-            probeDistance,
-        )
+        val returnButton = when (ascentButton) {
+            HardwareButton.TOP_RIGHT -> HardwareButton.TOP_LEFT
+            HardwareButton.TOP_LEFT -> HardwareButton.TOP_RIGHT
+            HardwareButton.BOTTOM_LEFT -> HardwareButton.TOP_LEFT
+            HardwareButton.BOTTOM_RIGHT -> HardwareButton.TOP_LEFT
+            else -> HardwareButton.TOP_LEFT
+        }
 
-        val currentElevation = HgtReader.getElevationAtCoordinate(currentLat, currentLon, cacheDir, applicationContext)
-        val projectedElevation = HgtReader.getElevationAtCoordinate(projectedLat, projectedLon, cacheDir, applicationContext)
+        // Karoo CLIMBER Logic:
+        // 1. Standard Climb Probe: 500m length along bearing vector
+        val (proj500Lat, proj500Lon) = projectCoordinate(currentLat, currentLon, currentHeading, 500.0)
+        // 2. Short Probe: 200m length along bearing vector
+        val (proj200Lat, proj200Lon) = projectCoordinate(currentLat, currentLon, currentHeading, 200.0)
 
-        val deltaElevation = projectedElevation - currentElevation
-        val grade = (deltaElevation / probeDistance) * 100.0
+        val currentElev = HgtReader.getElevationAtCoordinate(currentLat, currentLon, cacheDir, applicationContext)
+        val elev500 = HgtReader.getElevationAtCoordinate(proj500Lat, proj500Lon, cacheDir, applicationContext)
+        val elev200 = HgtReader.getElevationAtCoordinate(proj200Lat, proj200Lon, cacheDir, applicationContext)
+
+        val gain500 = elev500 - currentElev
+        val grade500 = (gain500 / 500.0) * 100.0
+
+        val gain200 = elev200 - currentElev
+        val grade200 = (gain200 / 200.0) * 100.0
+
+        // Karoo CLIMBER Trigger Criteria:
+        // - 500m probe grade >= 3.0% OR net gain >= 15m (matching Karoo CLIMBER 3.0% / 30m gain rule)
+        // - OR short punchy incline: 200m probe grade >= 4.0%
+        val isClimbingTerrain = (grade500 >= 3.0) || (gain500 >= 15.0) || (grade200 >= 4.0)
+
+        if (((evaluationCounter % 5L) == 0L) || isClimbingTerrain || (currentState != ClimbState.REGULAR)) {
+            AppLogger.d(
+                TAG,
+                "Terrain Probe #$evaluationCounter: Pos=(${"%.4f".format(currentLat)}, ${"%.4f".format(currentLon)}), " +
+                    "Speed=${"%.1f".format(currentSpeed * 3.6)}km/h, Heading=${"%.0f".format(currentHeading)}°, " +
+                    "Elev=${"%.0f".format(currentElev)}m, Grade500=${"%.1f".format(grade500)}%, Gain500=${"%.1f".format(gain500)}m, " +
+                    "State=$currentState",
+            )
+        }
 
         when (currentState) {
             ClimbState.REGULAR -> {
-                if (grade >= triggerThreshold) {
+                if (isClimbingTerrain) {
                     currentState = ClimbState.CONFIRMING_ASCENT
-                    Log.d(TAG, "Grade $grade% >= $triggerThreshold%. Entering CONFIRMING_ASCENT.")
+                    AppLogger.d(TAG, "Incline detected (500m grade=${"%.1f".format(grade500)}%, gain=${"%.1f".format(gain500)}m). Entering CONFIRMING_ASCENT.")
                 }
             }
             ClimbState.CONFIRMING_ASCENT -> {
-                if (grade >= triggerThreshold) {
+                if (isClimbingTerrain) {
                     currentState = ClimbState.ASCENDING
-                    Log.d(TAG, "Ascent confirmed ($grade%). Switching page to ASCENDING (gap=$pageGap).")
-                    executePageShift(HardwareButton.TOP_RIGHT, pageGap)
+                    AppLogger.d(TAG, "Climb confirmed matching Karoo CLIMBER spec. Switching page (Button=$ascentButton, gap=$pageGap).")
+                    executePageShift(ascentButton, pageGap)
                 } else {
                     currentState = ClimbState.REGULAR
-                    Log.d(TAG, "Ascent unconfirmed ($grade%). Reverting to REGULAR.")
+                    AppLogger.d(TAG, "Incline unconfirmed. Reverting to REGULAR.")
                 }
             }
             ClimbState.ASCENDING -> {
-                if (grade < triggerThreshold) {
+                if (!isClimbingTerrain) {
                     currentState = ClimbState.COOLDOWN
-                    Log.d(TAG, "Grade dropped to $grade%. Starting ${cooldownSeconds}s COOLDOWN timer.")
-                    startCooldownTimer(cooldownSeconds, pageGap)
+                    AppLogger.d(TAG, "Terrain flattened (500m grade=${"%.1f".format(grade500)}%). Starting ${cooldownSeconds}s COOLDOWN timer.")
+                    startCooldownTimer(cooldownSeconds, pageGap, returnButton)
                 }
             }
             ClimbState.COOLDOWN -> {
-                if (grade >= triggerThreshold) {
+                if (isClimbingTerrain) {
                     cooldownJob?.cancel()
                     cooldownJob = null
                     currentState = ClimbState.ASCENDING
-                    Log.d(TAG, "Grade re-entered ascent zone ($grade%). Cancelling COOLDOWN.")
+                    AppLogger.d(TAG, "Terrain steepened during cooldown. Cancelling COOLDOWN timer.")
                 }
             }
         }
     }
 
-    private fun startCooldownTimer(seconds: Int = 20, pageGap: Int = 1) {
+    private fun startCooldownTimer(seconds: Int = 20, pageGap: Int = 1, returnButton: HardwareButton = HardwareButton.TOP_LEFT) {
         cooldownJob?.cancel()
         cooldownJob = serviceScope.launch {
             delay(seconds.seconds)
             if (currentState == ClimbState.COOLDOWN) {
-                Log.d(TAG, "${seconds}s COOLDOWN complete. Switching back to REGULAR page (gap=$pageGap).")
-                executePageShift(HardwareButton.TOP_LEFT, pageGap)
+                AppLogger.d(TAG, "${seconds}s COOLDOWN complete. Switching back to REGULAR page (Button=$returnButton, gap=$pageGap).")
+                executePageShift(returnButton, pageGap)
                 currentState = ClimbState.REGULAR
             }
         }
@@ -211,6 +251,7 @@ class AscentSwitchService : KarooExtension("ascentswitch", "1.0.0") {
             HardwareButton.BOTTOM_RIGHT -> PerformHardwareAction.BottomRightPress
             HardwareButton.CONTROL_CENTER -> PerformHardwareAction.ControlCenterComboPress
         }
+        AppLogger.d(TAG, "Dispatching hardware action $action $counts time(s)...")
         repeat(counts) {
             karooSystem.dispatch(action)
             try {
@@ -249,7 +290,7 @@ class AscentSwitchService : KarooExtension("ascentswitch", "1.0.0") {
         serviceScope.cancel()
         karooSystem.disconnect()
         super.onDestroy()
-        Log.d(TAG, "AscentSwitch telemetry service destroyed.")
+        AppLogger.d(TAG, "AscentSwitch telemetry service destroyed.")
     }
 
     companion object {

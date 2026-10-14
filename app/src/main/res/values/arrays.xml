@@ -1,13 +1,56 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string-array name="profile_filter_entries">
+        <item>All Profiles (Default - Always Active)</item>
+        <item>Climbing &amp; Road Profiles</item>
+        <item>Gravel &amp; Mountain Profiles</item>
+        <item>Outdoor Rides Only (Disable Indoors)</item>
+    </string-array>
+    <string-array name="profile_filter_values">
+        <item>ALL</item>
+        <item>CLIMB_ROAD</item>
+        <item>GRAVEL_MTB</item>
+        <item>OUTDOOR_ONLY</item>
+    </string-array>
+
+    <string-array name="page_switch_direction_entries">
+        <item>Next Page (Top Right - Screen 1 → Screen 2) [Default]</item>
+        <item>Previous Page (Top Left - Screen 2 → Screen 1)</item>
+        <item>Bottom Left Hardware Button</item>
+        <item>Bottom Right Hardware Button</item>
+    </string-array>
+    <string-array name="page_switch_direction_values">
+        <item>TOP_RIGHT</item>
+        <item>TOP_LEFT</item>
+        <item>BOTTOM_LEFT</item>
+        <item>BOTTOM_RIGHT</item>
+    </string-array>
+
     <string-array name="page_gap_entries">
-        <item>1 Page</item>
-        <item>2 Pages</item>
-        <item>3 Pages</item>
+        <item>1 Page (Directly Adjacent)</item>
+        <item>2 Pages Away</item>
+        <item>3 Pages Away</item>
     </string-array>
     <string-array name="page_gap_values">
         <item>1</item>
         <item>2</item>
         <item>3</item>
+    </string-array>
+
+    <string-array name="cooldown_entries">
+        <item>10 Seconds (Quick Return)</item>
+        <item>15 Seconds</item>
+        <item>20 Seconds - Default (Recommended)</item>
+        <item>30 Seconds</item>
+        <item>45 Seconds</item>
+        <item>60 Seconds (Long Plateaus)</item>
+    </string-array>
+    <string-array name="cooldown_values">
+        <item>10</item>
+        <item>15</item>
+        <item>20</item>
+        <item>30</item>
+        <item>45</item>
+        <item>60</item>
     </string-array>
 </resources>

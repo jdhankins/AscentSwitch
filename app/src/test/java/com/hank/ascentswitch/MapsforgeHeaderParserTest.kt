@@ -17,25 +17,25 @@ class MapsforgeHeaderParserTest {
         val mapFile = tempFolder.newFile("test_region.map")
 
         RandomAccessFile(mapFile, "rw").use { raf ->
-            // Write 20-byte magic string: "mapsforge binary header"
-            raf.write("mapsforge binary header".toByteArray(Charsets.UTF_8))
+            // Write 20-byte magic header: "mapsforge binary OSM"
+            raf.write("mapsforge binary OSM".toByteArray(Charsets.UTF_8))
             raf.writeInt(100) // Header size
-            raf.writeInt(3)   // File version
+            raf.writeInt(5)   // File version
             raf.writeLong(100000) // File size
             raf.writeLong(1600000000) // Creation date
 
-            // Min/Max Lat/Lon in microdegrees: 39°N to 40°N, 106°W to 105°W
-            raf.writeInt(39_000_000)   // minLat
-            raf.writeInt(-106_000_000) // minLon
-            raf.writeInt(40_000_000)   // maxLat
-            raf.writeInt(-105_000_000) // maxLon
+            // Min/Max Lat/Lon in microdegrees: 37°N to 41°N, -109°W to -102°W
+            raf.writeInt(37_000_000)   // minLat
+            raf.writeInt(-109_000_000) // minLon
+            raf.writeInt(41_000_000)   // maxLat
+            raf.writeInt(-102_000_000) // maxLon
         }
 
         val bbox = MapsforgeHeaderParser.parseBoundingBox(mapFile)
         assertNotNull(bbox)
-        assertEquals(39.0, bbox!!.minLat, 0.0001)
-        assertEquals(-106.0, bbox.minLon, 0.0001)
-        assertEquals(40.0, bbox.maxLat, 0.0001)
-        assertEquals(-105.0, bbox.maxLon, 0.0001)
+        assertEquals(37.0, bbox!!.minLat, 0.0001)
+        assertEquals(-109.0, bbox.minLon, 0.0001)
+        assertEquals(41.0, bbox.maxLat, 0.0001)
+        assertEquals(-102.0, bbox.maxLon, 0.0001)
     }
 }

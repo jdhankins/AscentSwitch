@@ -1,7 +1,6 @@
 package com.hank.ascentswitch
 
 import android.content.Context
-import android.os.Environment
 import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
@@ -25,18 +24,10 @@ object HgtReader {
     @Suppress("unused")
     fun hasTile(lat: Double, lon: Double, cacheDirectory: File): Boolean {
         val filename = getTileFilename(lat, lon)
-        val candidateFiles = mutableListOf(
+        val candidateFiles = listOf(
             File(cacheDirectory, filename),
             File(cacheDirectory, "elevation/$filename"),
         )
-        try {
-            val externalDir = Environment.getExternalStorageDirectory()
-            candidateFiles.add(File(externalDir, "AscentSwitch/$filename"))
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            candidateFiles.add(File(downloadsDir, filename))
-        } catch (_: Throwable) {
-            // Environment calls unmocked in unit test environment
-        }
         return candidateFiles.any { it.exists() && it.isFile && (it.length() > 0) }
     }
 
@@ -53,19 +44,10 @@ object HgtReader {
         val filename = getTileFilename(lat, lon)
         val latFrac = lat - floorLat
 
-        val candidateFiles = mutableListOf(
+        val candidateFiles = listOf(
             File(cacheDirectory, filename),
             File(cacheDirectory, "elevation/$filename"),
         )
-
-        try {
-            val externalDir = Environment.getExternalStorageDirectory()
-            candidateFiles.add(File(externalDir, "AscentSwitch/$filename"))
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            candidateFiles.add(File(downloadsDir, filename))
-        } catch (_: Throwable) {
-            // Environment calls unmocked in unit test environment
-        }
 
         val targetFile = candidateFiles.firstOrNull { it.exists() && it.isFile && (it.length() > 0) }
 
