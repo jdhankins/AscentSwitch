@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <ListPreference
+        android:defaultValue="1"
+        android:entries="@array/page_gap_entries"
+        android:entryValues="@array/page_gap_values"
+        android:key="page_gap_index"
+        android:summary="How many screen flips away your climbing page sits"
+        android:title="Page Gap Index" />
+
+    <SeekBarPreference
+        android:defaultValue="35"
+        android:key="min_grade_trigger"
+        android:max="80"
+        android:min="10"
+        android:summary="Minimum grade percentage required to flip layout (1.0% to 8.0%)"
+        android:title="Minimum Grade Trigger (%)"
+        app:seekBarIncrement="5"
+        app:showSeekBarValue="true" />
+
+    <SeekBarPreference
+        android:defaultValue="20"
+        android:key="cooldown_seconds"
+        android:max="60"
+        android:min="5"
+        android:summary="Seconds to stay locked on climbing stats during plateaus"
+        android:title="Flattening Return Cooldown (s)"
+        app:showSeekBarValue="true" />
+
+</PreferenceScreen>

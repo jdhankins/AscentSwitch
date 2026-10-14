@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension-settings version="1">
+    <setting-enum
+        key="page_gap_index"
+        title="Page Gap Index"
+        summary="How many screen flips away your climbing page sits"
+        defaultValue="1"
+        entries="@array/page_gap_entries"
+        entryValues="@array/page_gap_values" />
+    <setting-float
+        key="min_grade_trigger"
+        title="Minimum Grade Trigger"
+        summary="The incline percentage required to flip your layout"
+        defaultValue="3.5"
+        minValue="1.0"
+        maxValue="8.0" />
+    <setting-integer
+        key="cooldown_seconds"
+        title="Flattening Return Cooldown"
+        summary="Seconds to stay locked on climbing stats during plateaus"
+        defaultValue="20"
+        minValue="5"
+        maxValue="60" />
+</extension-settings>

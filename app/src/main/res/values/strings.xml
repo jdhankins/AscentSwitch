@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">AscentSwitch</string>
+    <string name="service_description">Predictive page shifting and topography scanning for all-terrain cycling.</string>
+</resources>
